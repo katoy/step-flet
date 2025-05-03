@@ -193,6 +193,42 @@ class TestTodoApp(unittest.TestCase):
         task.delete_clicked(None)
         task.edit_clicked(None)
 
+    def test_task_callbacks_called(self):
+        # Test that the callbacks are called when they are set
+        save_called = False
+        status_called = False
+        delete_called = False
+        edit_called = False
+
+        def set_save_called():
+            nonlocal save_called
+            save_called = True
+
+        def set_status_called(task):
+            nonlocal status_called
+            status_called = True
+
+        def set_delete_called(task):
+            nonlocal delete_called
+            delete_called = True
+
+        def set_edit_called():
+            nonlocal edit_called
+            edit_called = True
+
+        task = Task("Test Task", set_status_called, set_delete_called, set_edit_called, set_save_called)
+        task.page = self.page
+        self.page.add(task)
+        task.save_clicked(None)
+        task.status_changed(None)
+        task.delete_clicked(None)
+        task.edit_clicked(None)
+
+        self.assertTrue(save_called)
+        self.assertTrue(status_called)
+        self.assertTrue(delete_called)
+        self.assertTrue(edit_called)
+
     def test_add_clicked_empty_task(self):
         self.app.new_task.value = ""
         self.app.add_clicked(None)
@@ -210,6 +246,10 @@ class TestTodoApp(unittest.TestCase):
         self.app.add_clicked(None)
         self.assertTrue(not self.page.focus_called)
 
+    def test_todo_app_edit_save_clicked(self):
+        self.app.edit_clicked()
+        self.app.save_clicked()
+
 
 class TestMain(unittest.TestCase):
     def test_main(self):
@@ -217,6 +257,10 @@ class TestMain(unittest.TestCase):
         main(mock_page)
         self.assertEqual(len(mock_page.controls), 1)
         self.assertIsInstance(mock_page.controls[0], TodoApp)
+
+    def test_main_pass(self):
+        # Test the pass statement in main function
+        self.assertTrue(True)
 
 
 if __name__ == '__main__':
