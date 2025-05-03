@@ -1,16 +1,16 @@
-# Todo app
+# Todoアプリ
 
-## Run the app
+## アプリの実行
 
 ### uv
 
-Run as a desktop app:
+デスクトップアプリとして実行:
 
 ```
 uv run flet run
 ```
 
-Run as a web app:
+ウェブアプリとして実行:
 
 ```
 uv run flet run --web
@@ -18,27 +18,27 @@ uv run flet run --web
 
 ### Poetry
 
-Install dependencies from `pyproject.toml`:
+`pyproject.toml`から依存関係をインストール:
 
 ```
 poetry install
 ```
 
-Run as a desktop app:
+デスクトップアプリとして実行:
 
 ```
 poetry run flet run
 ```
 
-Run as a web app:
+ウェブアプリとして実行:
 
 ```
 poetry run flet run --web
 ```
 
-For more details on running the app, refer to the [Getting Started Guide](https://flet.dev/docs/getting-started/).
+アプリの実行に関する詳細は、[Fletドキュメント](https://flet.dev/docs/getting-started/)を参照してください。
 
-## Build the app
+## アプリのビルド
 
 ### Android
 
@@ -46,7 +46,7 @@ For more details on running the app, refer to the [Getting Started Guide](https:
 flet build apk -v
 ```
 
-For more details on building and signing `.apk` or `.aab`, refer to the [Android Packaging Guide](https://flet.dev/docs/publish/android/).
+`.apk`または`.aab`のビルドと署名に関する詳細は、[Android Packaging Guide](https://flet.dev/docs/publish/android/)を参照してください。
 
 ### iOS
 
@@ -54,7 +54,7 @@ For more details on building and signing `.apk` or `.aab`, refer to the [Android
 flet build ipa -v
 ```
 
-For more details on building and signing `.ipa`, refer to the [iOS Packaging Guide](https://flet.dev/docs/publish/ios/).
+`.ipa`のビルドと署名に関する詳細は、[iOS Packaging Guide](https://flet.dev/docs/publish/ios/)を参照してください。
 
 ### macOS
 
@@ -62,7 +62,7 @@ For more details on building and signing `.ipa`, refer to the [iOS Packaging Gui
 flet build macos -v
 ```
 
-For more details on building macOS package, refer to the [macOS Packaging Guide](https://flet.dev/docs/publish/macos/).
+macOSパッケージのビルドに関する詳細は、[macOS Packaging Guide](https://flet.dev/docs/publish/macos/)を参照してください。
 
 ### Linux
 
@@ -70,7 +70,7 @@ For more details on building macOS package, refer to the [macOS Packaging Guide]
 flet build linux -v
 ```
 
-For more details on building Linux package, refer to the [Linux Packaging Guide](https://flet.dev/docs/publish/linux/).
+Linuxパッケージのビルドに関する詳細は、[Linux Packaging Guide](https://flet.dev/docs/publish/linux/)を参照してください。
 
 ### Windows
 
@@ -78,4 +78,43 @@ For more details on building Linux package, refer to the [Linux Packaging Guide]
 flet build windows -v
 ```
 
-For more details on building Windows package, refer to the [Windows Packaging Guide](https://flet.dev/docs/publish/windows/).
+Windowsパッケージのビルドに関する詳細は、[Windows Packaging Guide](https://flet.dev/docs/publish/windows/)を参照してください。
+
+## テスト
+
+### テストを実行するには:
+
+```
+python -m unittest tests/test_main.py
+```
+
+### テストカバレッジを計測するには:
+
+```
+pip install coverage
+coverage run -m unittest tests/test_main.py
+coverage report
+
+HTML形式でカバレッジレポートを作成するには:
+
+```
+coverage html
+```
+
+`.coveragerc`ファイルを作成し、カバレッジ計測から`tests/test_main.py`を除外します。
+
+```
+[run]
+omit =
+    tests/*
+```
+
+### カバレッジデータを削除するには:
+
+```
+coverage erase
+```
+
+## 参考情報
+
+*   [https://flet.dev/docs/tutorials/python-todo](https://flet.dev/docs/tutorials/python-todo) (FletでPython ToDoアプリを作成する)
