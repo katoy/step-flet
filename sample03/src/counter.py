@@ -1,5 +1,5 @@
 import flet
-from flet import IconButton, Page, Row, TextField, icons
+from flet import IconButton, Page, Row, TextField, Icons
 
 def main(page: Page):
     page.title = "Flet Counter Example"
@@ -18,9 +18,9 @@ def main(page: Page):
     page.add(
         Row(
             [
-                IconButton(icons.REMOVE, on_click=minus_click),
+                IconButton(Icons.REMOVE, on_click=minus_click),
                 txt_number,
-                IconButton(icons.ADD, on_click=plus_click),
+                IconButton(Icons.ADD, on_click=plus_click),
             ],
             alignment="center",
         )
