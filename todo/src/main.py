@@ -2,12 +2,14 @@ import flet as ft
 
 
 class Task(ft.Column):
-    def __init__(self, task_name, task_status_change, task_delete):
+    def __init__(self, task_name, on_status_changed, on_delete_clicked, on_edit_clicked, on_save_clicked):
         super().__init__()
         self.completed = False
         self.task_name = task_name
-        self.task_status_change = task_status_change
-        self.task_delete = task_delete
+        self.on_status_changed = on_status_changed
+        self.on_delete_clicked = on_delete_clicked
+        self.on_edit_clicked = on_edit_clicked
+        self.on_save_clicked = on_save_clicked
         self.display_task = ft.Checkbox(
             value=False, label=self.task_name, on_change=self.status_changed
         )
@@ -56,20 +58,26 @@ class Task(ft.Column):
         self.edit_name.value = self.display_task.label
         self.display_view.visible = False
         self.edit_view.visible = True
+        if self.on_edit_clicked:
+            self.on_edit_clicked()
         self.update()
 
     def save_clicked(self, e):
         self.display_task.label = self.edit_name.value
         self.display_view.visible = True
         self.edit_view.visible = False
+        if self.on_save_clicked:
+            self.on_save_clicked()
         self.update()
 
     def status_changed(self, e):
         self.completed = self.display_task.value
-        self.task_status_change(self)
+        if self.on_status_changed:
+            self.on_status_changed(self)
 
     def delete_clicked(self, e):
-        self.task_delete(self)
+        if self.on_delete_clicked:
+            self.on_delete_clicked(self)
 
 
 class TodoApp(ft.Column):
@@ -125,16 +133,22 @@ class TodoApp(ft.Column):
 
     def add_clicked(self, e):
         if self.new_task.value:
-            task = Task(self.new_task.value, self.task_status_change, self.task_delete)
+            task = Task(
+                self.new_task.value,
+                on_status_changed=self.status_changed,
+                on_delete_clicked=self.delete_task,
+                on_edit_clicked=self.edit_clicked,
+                on_save_clicked=self.save_clicked
+            )
             self.tasks.controls.append(task)
             self.new_task.value = ""
             self.new_task.focus()
             self.update()
 
-    def task_status_change(self, task):
+    def status_changed(self, task):
         self.update()
 
-    def task_delete(self, task):
+    def delete_task(self, task):
         self.tasks.controls.remove(task)
         self.update()
 
@@ -144,7 +158,7 @@ class TodoApp(ft.Column):
     def clear_clicked(self, e):
         for task in self.tasks.controls[:]:
             if task.completed:
-                self.task_delete(task)
+                self.delete_task(task)
 
     def before_update(self):
         status = self.filter.tabs[self.filter.selected_index].text
@@ -155,9 +169,15 @@ class TodoApp(ft.Column):
                 or (status == "active" and task.completed is False)
                 or (status == "completed" and task.completed is True)
             )
-            if task.completed is not True:
+            if not task.completed:
                 count += 1
         self.items_left.value = f"{count} active item(s) left"
+
+    def edit_clicked(self):
+        self.update()
+
+    def save_clicked(self):
+        self.update()
 
 
 def main(page: ft.Page):
