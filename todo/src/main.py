@@ -190,4 +190,4 @@ def main(page: ft.Page):
 
 
 if __name__ == "__main__":
-    ft.app(main)
+    ft.app(main)  # pragma: no cover
