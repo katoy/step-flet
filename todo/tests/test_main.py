@@ -1,6 +1,6 @@
 import unittest
 import flet as ft
-from src.main import Task, TodoApp
+from src.main import Task, TodoApp, main
 
 
 class MockPage:
@@ -12,12 +12,17 @@ class MockPage:
         control.page = self  # Add this line
 
     def update(self, control):
-        pass
+        self.focus_called = True
+
+    def focus(self):
+        self.focus_called = True
+        return None
 
 
 class TestTask(unittest.TestCase):
     def setUp(self):
         self.page = MockPage()
+        self.page.focus_called = False
         self.task = Task("Test Task", None, None, None, None)
         self.task.page = self.page  # Add this line
         self.page.add(self.task)
@@ -27,14 +32,23 @@ class TestTask(unittest.TestCase):
         self.assertFalse(self.task.completed)
 
     def test_status_changed(self):
+        # status_changed doesn't change completed status without an event
         self.task.status_changed(None)
-        self.assertFalse(self.task.completed)  # status_changed doesn't change completed status without an event
+        self.assertFalse(self.task.completed)
+
+        # Test status_changed with an event
+        event = ft.ControlEvent(target=self.task.display_task, name="change", data=None, control=self.task.display_task, page=self.page)
+        self.task.display_task.value = True
+        self.task.status_changed(event)
+        self.assertTrue(self.task.completed)
 
     def test_delete_clicked(self):
         # Cannot directly test delete_clicked as it relies on a callback
-        pass
+        self.task.on_delete_clicked = lambda task: None  # Mock the callback
+        self.task.delete_clicked(None)
 
     def test_edit_clicked(self):
+        self.task.on_edit_clicked = lambda: None  # Mock the callback
         self.task.edit_clicked(None)
         self.assertEqual(self.task.edit_name.value, "Test Task")
         self.assertFalse(self.task.display_view.visible)
@@ -51,6 +65,7 @@ class TestTask(unittest.TestCase):
 class TestTodoApp(unittest.TestCase):
     def setUp(self):
         self.page = MockPage()
+        self.page.focus_called = False
         self.app = TodoApp()
         self.app.page = self.page  # Add this line
         self.page.add(self.app)
@@ -60,6 +75,7 @@ class TestTodoApp(unittest.TestCase):
         self.assertEqual(self.app.width, 600)
 
     def test_add_clicked(self):
+        self.page.focus_called = False
         self.app.new_task.value = "New Task"
         self.app.add_clicked(None)
         self.assertEqual(len(self.app.tasks.controls), 1)
@@ -67,8 +83,10 @@ class TestTodoApp(unittest.TestCase):
         self.assertEqual(self.app.new_task.value, "")
 
     def test_status_changed(self):
+        self.page.focus_called = False
         self.app.new_task.value = "New Task"
         self.app.add_clicked(None)
+        self.assertEqual(len(self.app.tasks.controls), 1)
         task = self.app.tasks.controls[0]
         task.completed = True
         self.app.status_changed(task)
@@ -76,6 +94,7 @@ class TestTodoApp(unittest.TestCase):
         # self.assertEqual(self.app.items_left.value, "0 active item(s) left")
 
     def test_delete_task(self):
+        self.page.focus_called = False
         self.app.new_task.value = "New Task"
         self.app.add_clicked(None)
         task = self.app.tasks.controls[0]
@@ -83,11 +102,13 @@ class TestTodoApp(unittest.TestCase):
         self.assertEqual(len(self.app.tasks.controls), 0)
 
     def test_tabs_changed(self):
+        self.page.focus_called = False
         self.app.tabs_changed(None)
         # Cannot directly test tabs_changed as it relies on the before_update method
         pass
 
     def test_clear_clicked(self):
+        self.page.focus_called = False
         self.app.new_task.value = "New Task"
         self.app.add_clicked(None)
         task = self.app.tasks.controls[0]
@@ -96,11 +117,106 @@ class TestTodoApp(unittest.TestCase):
         self.assertEqual(len(self.app.tasks.controls), 0)
 
     def test_before_update(self):
+        self.page.focus_called = False
         self.app.new_task.value = "New Task"
         self.app.add_clicked(None)
         self.app.filter.selected_index = 1  # "active" tab
         self.app.before_update()
         self.assertEqual(self.app.items_left.value, "1 active item(s) left")
+
+    def test_add_clicked_focus(self):
+        self.page.focus_called = False
+        self.app.new_task.value = "New Task"
+        self.app.add_clicked(None)
+        self.app.new_task.focus()
+        self.assertTrue(self.page.focus_called)
+
+    def test_before_update_status(self):
+        self.page.focus_called = False
+        self.app.new_task.value = "New Task"
+        self.app.add_clicked(None)
+        task = self.app.tasks.controls[0]
+        task.completed = True
+        self.app.filter.selected_index = 2  # "completed" tab
+        self.app.before_update()
+        self.assertTrue(task.visible)
+        self.assertEqual(self.app.items_left.value, "0 active item(s) left")
+
+    def test_before_update_all_tab(self):
+        self.app.new_task.value = "New Task"
+        self.app.add_clicked(None)
+        task = self.app.tasks.controls[0]
+        self.app.filter.selected_index = 0  # "all" tab
+        self.app.before_update()
+        self.assertTrue(task.visible)
+        self.assertEqual(self.app.items_left.value, "1 active item(s) left")
+
+    def test_before_update_active_tab(self):
+        self.app.new_task.value = "New Task"
+        self.app.add_clicked(None)
+        task = self.app.tasks.controls[0]
+        self.app.filter.selected_index = 1  # "active" tab
+        self.app.before_update()
+        self.assertTrue(task.visible)
+        self.assertEqual(self.app.items_left.value, "1 active item(s) left")
+
+    def test_before_update_completed_tab(self):
+        self.app.new_task.value = "New Task"
+        self.app.add_clicked(None)
+        task = self.app.tasks.controls[0]
+        task.completed = True
+        self.app.filter.selected_index = 2  # "completed" tab
+        self.app.before_update()
+        self.assertTrue(task.visible)
+        self.assertEqual(self.app.items_left.value, "0 active item(s) left")
+
+    def test_before_update_active_tab_completed_task(self):
+        self.app.new_task.value = "New Task"
+        self.app.add_clicked(None)
+        task = self.app.tasks.controls[0]
+        task.completed = True
+        self.app.filter.selected_index = 1  # "active" tab
+        self.app.before_update()
+        self.assertFalse(task.visible)
+        self.assertEqual(self.app.items_left.value, "0 active item(s) left")
+
+    def test_task_callbacks(self):
+        task = Task("Test Task", None, None, None, None)
+        task.on_save_clicked = lambda: None
+        task.on_status_changed = lambda task: None
+        task.on_delete_clicked = lambda task: None
+        task.on_edit_clicked = lambda: None
+        task.page = self.page
+        self.page.add(task)
+        task.save_clicked(None)
+        task.status_changed(None)
+        task.delete_clicked(None)
+        task.edit_clicked(None)
+
+    def test_add_clicked_empty_task(self):
+        self.app.new_task.value = ""
+        self.app.add_clicked(None)
+        self.assertEqual(len(self.app.tasks.controls), 0)
+
+    def test_before_update_no_tasks(self):
+        self.app.filter.selected_index = 0  # "all" tab
+        self.app.before_update()
+        self.assertEqual(self.app.items_left.value, "0 active item(s) left")
+        self.assertEqual(self.app.filter.selected_index, 0)
+
+    def test_add_clicked_empty_task_focus(self):
+        self.page.focus_called = False
+        self.app.new_task.value = ""
+        self.app.add_clicked(None)
+        self.assertTrue(not self.page.focus_called)
+
+
+class TestMain(unittest.TestCase):
+    def test_main(self):
+        mock_page = MockPage()
+        main(mock_page)
+        self.assertEqual(len(mock_page.controls), 1)
+        self.assertIsInstance(mock_page.controls[0], TodoApp)
 
 
 if __name__ == '__main__':
