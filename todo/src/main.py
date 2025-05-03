@@ -189,4 +189,6 @@ def main(page: ft.Page):
     page.add(TodoApp())
 
 
-ft.app(main)
+# テスト実行時にはアプリ画面を表示しない
+    # ft.app(main)
+    pass
