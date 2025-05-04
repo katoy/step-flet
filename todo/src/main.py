@@ -1,4 +1,5 @@
 import flet as ft
+import json
 from assets.translations import translations
 
 
@@ -73,6 +74,7 @@ class Task(ft.Column):
         self.edit_view.visible = False
         if self.on_save_clicked:
             self.on_save_clicked()
+        save_tasks()
         self.update()
 
     def status_changed(self, e):
@@ -159,13 +161,16 @@ class TodoApp(ft.Column):
             self.tasks.controls.append(task)
             self.new_task.value = ""
             self.new_task.focus()
+            save_tasks()
             self.update()
 
     def status_changed(self, task):
+        save_tasks()
         self.update()
 
     def delete_task(self, task):
         self.tasks.controls.remove(task)
+        save_tasks()
         self.update()
 
     def tabs_changed(self, e):
@@ -175,6 +180,7 @@ class TodoApp(ft.Column):
         for task in self.tasks.controls[:]:
             if task.completed:
                 self.delete_task(task)
+        self.save_tasks()
 
     def before_update(self):
         # タブの選択インデックスで表示を制御
@@ -241,6 +247,42 @@ def main(page: ft.Page):
     # 初回起動
     todo_app = TodoApp(lang="ja")
     page.add(todo_app)
+
+    # タスクをロード
+    task_list = load_tasks()
+    for task_data in task_list:
+        task = Task(
+            task_name=task_data["task_name"],
+            on_status_changed=todo_app.status_changed,
+            on_delete_clicked=todo_app.delete_task,
+            on_edit_clicked=todo_app.edit_clicked,
+            on_save_clicked=todo_app.save_clicked
+        )
+        task.completed = task_data["completed"]
+        task.display_task.value = task.completed
+        todo_app.tasks.controls.append(task)
+
+    page.update()
+
+
+def load_tasks():
+    try:
+        with open("storage/todos.json", "r", encoding="utf-8") as f:
+            task_list = json.load(f)
+    except FileNotFoundError:
+        return []
+    return task_list
+
+
+def save_tasks():
+    task_list = []
+    for task in todo_app.tasks.controls:
+        task_list.append({
+            "task_name": task.display_task.label,
+            "completed": task.completed
+        })
+    with open("storage/todos.json", "w", encoding="utf-8") as f:
+        json.dump(task_list, f, ensure_ascii=False, indent=4)
 
 
 if __name__ == "__main__":
