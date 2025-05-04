@@ -281,9 +281,15 @@ def main(page: ft.Page):
     page.update()
 
 
+import os
+
+TEST_MODE = True
+STORAGE_FILE = "storage/test_todos.json"
+
+
 def load_tasks():
     try:
-        with open("storage/todos.json", "r", encoding="utf-8") as f:
+        with open(STORAGE_FILE, "r", encoding="utf-8") as f:
             task_list = json.load(f)
     except FileNotFoundError:
         return []
@@ -291,12 +297,14 @@ def load_tasks():
 
 
 def save_tasks():
+    if todo_app is None or todo_app.tasks is None:
+        return
     task_list = []
     for task in todo_app.tasks.controls:
         task_list.append(
             {"task_name": task.display_task.label, "completed": task.completed}
         )
-    with open("storage/todos.json", "w", encoding="utf-8") as f:
+    with open(STORAGE_FILE, "w", encoding="utf-8") as f:
         json.dump(task_list, f, ensure_ascii=False, indent=4)
 
 
