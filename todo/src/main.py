@@ -4,7 +4,14 @@ from assets.translations import translations
 
 
 class Task(ft.Column):
-    def __init__(self, task_name, on_status_changed, on_delete_clicked, on_edit_clicked, on_save_clicked):
+    def __init__(
+        self,
+        task_name,
+        on_status_changed,
+        on_delete_clicked,
+        on_edit_clicked,
+        on_save_clicked,
+    ):
         super().__init__()
         self.completed = False
         self.task_name = task_name
@@ -14,9 +21,7 @@ class Task(ft.Column):
         self.on_save_clicked = on_save_clicked
 
         self.display_task = ft.Checkbox(
-            value=False,
-            label=self.task_name,
-            on_change=self.status_changed
+            value=False, label=self.task_name, on_change=self.status_changed
         )
         self.edit_name = ft.TextField(expand=1)
 
@@ -96,7 +101,7 @@ class TodoApp(ft.Column):
         self.new_task = ft.TextField(
             hint_text=self.translations["What needs to be done?"],
             on_submit=self.add_clicked,
-            expand=True
+            expand=True,
         )
         self.tasks = ft.Column()
 
@@ -116,16 +121,19 @@ class TodoApp(ft.Column):
 
         self.controls = [
             ft.Row(
-                [ft.Text(value=self.translations["Todos"],
-                         theme_style=ft.TextThemeStyle.HEADLINE_MEDIUM)],
+                [
+                    ft.Text(
+                        value=self.translations["Todos"],
+                        theme_style=ft.TextThemeStyle.HEADLINE_MEDIUM,
+                    )
+                ],
                 alignment=ft.MainAxisAlignment.CENTER,
             ),
             ft.Row(
                 controls=[
                     self.new_task,
                     ft.FloatingActionButton(
-                        icon=ft.Icons.ADD,
-                        on_click=self.add_clicked
+                        icon=ft.Icons.ADD, on_click=self.add_clicked
                     ),
                 ],
             ),
@@ -141,7 +149,7 @@ class TodoApp(ft.Column):
                             self.items_left,
                             ft.OutlinedButton(
                                 text=self.translations["Clear completed"],
-                                on_click=self.clear_clicked
+                                on_click=self.clear_clicked,
                             ),
                         ],
                     ),
@@ -156,7 +164,7 @@ class TodoApp(ft.Column):
                 on_status_changed=self.status_changed,
                 on_delete_clicked=self.delete_task,
                 on_edit_clicked=self.edit_clicked,
-                on_save_clicked=self.save_clicked
+                on_save_clicked=self.save_clicked,
             )
             self.tasks.controls.append(task)
             self.new_task.value = ""
@@ -184,10 +192,9 @@ class TodoApp(ft.Column):
     def save_tasks(self):
         task_list = []
         for task in self.tasks.controls:
-            task_list.append({
-                "task_name": task.display_task.label,
-                "completed": task.completed
-            })
+            task_list.append(
+                {"task_name": task.display_task.label, "completed": task.completed}
+            )
         with open("storage/todos.json", "w", encoding="utf-8") as f:
             json.dump(task_list, f, ensure_ascii=False, indent=4)
 
@@ -265,7 +272,7 @@ def main(page: ft.Page):
             on_status_changed=todo_app.status_changed,
             on_delete_clicked=todo_app.delete_task,
             on_edit_clicked=todo_app.edit_clicked,
-            on_save_clicked=todo_app.save_clicked
+            on_save_clicked=todo_app.save_clicked,
         )
         task.completed = task_data["completed"]
         task.display_task.value = task.completed
@@ -286,10 +293,9 @@ def load_tasks():
 def save_tasks():
     task_list = []
     for task in todo_app.tasks.controls:
-        task_list.append({
-            "task_name": task.display_task.label,
-            "completed": task.completed
-        })
+        task_list.append(
+            {"task_name": task.display_task.label, "completed": task.completed}
+        )
     with open("storage/todos.json", "w", encoding="utf-8") as f:
         json.dump(task_list, f, ensure_ascii=False, indent=4)
 

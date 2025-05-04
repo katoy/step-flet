@@ -2,8 +2,11 @@ import unittest
 import flet as ft
 import sys
 import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src', 'assets')))
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src", "assets"))
+)
 
 # Execute src/main.py's if __name__ == "__main__": block
 
@@ -20,7 +23,6 @@ class MockPage:
 
     def update(self, control=None):
         self.focus_called = True
-
 
     def remove(self, control):
         self.controls.remove(control)
@@ -48,7 +50,13 @@ class TestTask(unittest.TestCase):
         self.assertFalse(self.task.completed)
 
         # Test status_changed with an event
-        event = ft.ControlEvent(target=self.task.display_task, name="change", data=None, control=self.task.display_task, page=self.page)
+        event = ft.ControlEvent(
+            target=self.task.display_task,
+            name="change",
+            data=None,
+            control=self.task.display_task,
+            page=self.page,
+        )
         self.task.display_task.value = True
         self.task.status_changed(event)
         self.assertTrue(self.task.completed)
@@ -227,7 +235,13 @@ class TestTodoApp(unittest.TestCase):
             nonlocal edit_called
             edit_called = True
 
-        task = Task("Test Task", set_status_called, set_delete_called, set_edit_called, set_save_called)
+        task = Task(
+            "Test Task",
+            set_status_called,
+            set_delete_called,
+            set_edit_called,
+            set_save_called,
+        )
         task.page = self.page
         self.page.add(task)
         task.save_clicked(None)
@@ -275,7 +289,6 @@ class TestMain(unittest.TestCase):
         self.assertEqual(len(mock_page.controls), 1)
         self.assertIsInstance(mock_page.controls[0], TodoApp)
 
-
     def test_language_changed(self):
         mock_page = MockPage()
         main(mock_page)
@@ -287,12 +300,12 @@ class TestMain(unittest.TestCase):
             name="change",
             data=None,
             control=language_dropdown,
-            page=mock_page
+            page=mock_page,
         )
         language_dropdown.on_change(language_changed_event)
         app = mock_page.controls[0]
         self.assertEqual(app.lang, "en")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
