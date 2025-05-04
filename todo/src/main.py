@@ -191,7 +191,7 @@ class TodoApp(ft.Column):
             if not task.completed:
                 count += 1
 
-        self.items_left.value = f"{count} {self.translations['item(s) left']}"
+        self.items_left.value = f"{count} active {self.translations['item(s) left']}"
 
     def edit_clicked(self):
         self.update()

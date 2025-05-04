@@ -1,5 +1,13 @@
 import unittest
 import flet as ft
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src', 'assets')))
+
+# Execute src/main.py's if __name__ == "__main__": block
+import src.main
+
 from src.main import Task, TodoApp, main
 
 
@@ -11,8 +19,12 @@ class MockPage:
         self.controls.append(control)
         control.page = self  # Add this line
 
-    def update(self, control):
+    def update(self, control=None):
         self.focus_called = True
+
+
+    def remove(self, control):
+        self.controls.remove(control)
 
     def focus(self):
         self.focus_called = True
@@ -252,15 +264,35 @@ class TestTodoApp(unittest.TestCase):
 
 
 class TestMain(unittest.TestCase):
+    def setUp(self):
+        mock_page = MockPage()
+        main(mock_page)
+        self.assertEqual(len(mock_page.controls), 1)
+        self.assertIsInstance(mock_page.controls[0], TodoApp)
+
     def test_main(self):
         mock_page = MockPage()
         main(mock_page)
         self.assertEqual(len(mock_page.controls), 1)
         self.assertIsInstance(mock_page.controls[0], TodoApp)
 
-    def test_main_pass(self):
-        # Test the pass statement in main function
-        self.assertTrue(True)
+
+    def test_language_changed(self):
+        mock_page = MockPage()
+        main(mock_page)
+        app = mock_page.controls[0]
+        language_dropdown = app.page.appbar.actions[0]
+        language_dropdown.value = "en"
+        language_changed_event = ft.ControlEvent(
+            target=language_dropdown,
+            name="change",
+            data=None,
+            control=language_dropdown,
+            page=mock_page
+        )
+        language_dropdown.on_change(language_changed_event)
+        app = mock_page.controls[0]
+        self.assertEqual(app.lang, "en")
 
 
 if __name__ == '__main__':
