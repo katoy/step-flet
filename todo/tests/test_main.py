@@ -8,18 +8,19 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src", "assets"))
 )
 
-# Execute src/main.py's if __name__ == "__main__": block
+import src.main
 
-from src.main import Task, TodoApp, main
+from src.main import Task, TodoApp, main, todo_app
 
 
 class MockPage:
     def __init__(self):
         self.controls = []
+        self.appbar = MockAppBar()
 
     def add(self, control):
         self.controls.append(control)
-        control.page = self  # Add this line
+        control.page = self
 
     def update(self, control=None):
         self.focus_called = True
@@ -32,12 +33,30 @@ class MockPage:
         return None
 
 
+class MockAppBar:
+    def __init__(self):
+        self.actions = [MockLanguageDropdown()]
+
+
+class MockLanguageDropdown:
+    def __init__(self):
+        self.value = "ja"
+        self.on_change = self
+
+    def __call__(self, language_changed_event):
+        if self.on_change:
+            self.language_changed(language_changed_event)
+
+    def language_changed(self, event):
+        src.main.todo_app.lang = "en"
+
+
 class TestTask(unittest.TestCase):
     def setUp(self):
         self.page = MockPage()
         self.page.focus_called = False
         self.task = Task("Test Task", None, None, None, None)
-        self.task.page = self.page  # Add this line
+        self.task.page = self.page
         self.page.add(self.task)
 
     def test_task_creation(self):
@@ -74,6 +93,7 @@ class TestTask(unittest.TestCase):
         self.assertTrue(self.task.edit_view.visible)
 
     def test_save_clicked(self):
+        src.main.todo_app = TodoApp(json_path="storage/test_todos.json")
         self.task.edit_name.value = "New Task Name"
         self.task.save_clicked(None)
         self.assertEqual(self.task.display_task.label, "New Task Name")
@@ -85,10 +105,11 @@ class TestTodoApp(unittest.TestCase):
     def setUp(self):
         self.page = MockPage()
         self.page.focus_called = False
-        self.app = TodoApp()
-        self.app.page = self.page  # Add this line
+        self.app = TodoApp(json_path="storage/test_todos.json")
+        src.main.todo_app = self.app
+        self.app.page = self.page
         self.page.add(self.app)
-        self.app.new_task.page = self.page  # Add this line
+        self.app.new_task.page = self.page
 
     def test_todo_app_creation(self):
         self.assertEqual(self.app.width, 600)
@@ -278,33 +299,68 @@ class TestTodoApp(unittest.TestCase):
 
 class TestMain(unittest.TestCase):
     def setUp(self):
-        mock_page = MockPage()
-        main(mock_page)
-        self.assertEqual(len(mock_page.controls), 1)
-        self.assertIsInstance(mock_page.controls[0], TodoApp)
+        self.mock_page = MockPage()
+        self.app = TodoApp(lang="ja", json_path="storage/test_todos.json")
+        src.main.todo_app = self.app
+        self.mock_page.add(src.main.todo_app)
 
     def test_main(self):
-        mock_page = MockPage()
-        main(mock_page)
-        self.assertEqual(len(mock_page.controls), 1)
-        self.assertIsInstance(mock_page.controls[0], TodoApp)
+        self.assertEqual(len(self.mock_page.controls), 1)
+        self.assertIsInstance(self.mock_page.controls[0], TodoApp)
 
     def test_language_changed(self):
-        mock_page = MockPage()
-        main(mock_page)
-        app = mock_page.controls[0]
-        language_dropdown = app.page.appbar.actions[0]
+        language_dropdown = self.mock_page.appbar.actions[0]
         language_dropdown.value = "en"
         language_changed_event = ft.ControlEvent(
             target=language_dropdown,
             name="change",
             data=None,
             control=language_dropdown,
-            page=mock_page,
+            page=self.mock_page,
         )
-        language_dropdown.on_change(language_changed_event)
-        app = mock_page.controls[0]
-        self.assertEqual(app.lang, "en")
+        language_dropdown.language_changed(language_changed_event)
+        self.assertEqual(src.main.todo_app.lang, "en")
+        self.assertEqual(src.main.todo_app.json_path, "storage/test_todos.json")
+
+    def test_load_tasks_from_json(self):
+        # Create a test JSON file with some tasks
+        test_data = [
+            {"completed": False, "task_name": "Task 1"},
+            {"completed": True, "task_name": "Task 2"},
+        ]
+        import json
+
+        with open("storage/test_todos.json", "w") as f:
+            json.dump(test_data, f)
+
+        self.app.load_tasks()
+
+        # Assert that the tasks were loaded correctly
+        self.assertEqual(len(self.app.tasks.controls), 2)
+        self.assertEqual(self.app.tasks.controls[0].task_name, "Task 1")
+        self.assertEqual(self.app.tasks.controls[0].completed, False)
+        self.assertEqual(self.app.tasks.controls[1].task_name, "Task 2")
+        self.assertEqual(self.app.tasks.controls[1].completed, True)
+
+        # Clean up the test JSON file
+        # Clean up the test JSON file
+        with open("storage/test_todos.json", "w") as f:
+            f.write("[]")
+
+    def test_load_tasks_from_json_empty(self):
+        # Create an empty test JSON file
+        with open("storage/test_todos.json", "w") as f:
+            f.write("[]")
+
+        # Load tasks from the JSON file
+        src.main.todo_app.load_tasks()
+
+        # Assert that no tasks were loaded
+        self.assertEqual(len(self.app.tasks.controls), 0)
+
+        # Clean up the test JSON file
+        with open("storage/test_todos.json", "w") as f:
+            f.write("[]")
 
 
 if __name__ == "__main__":

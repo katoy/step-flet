@@ -79,7 +79,8 @@ class Task(ft.Column):
         self.edit_view.visible = False
         if self.on_save_clicked:
             self.on_save_clicked()
-        save_tasks()
+        global todo_app
+        todo_app.save_tasks()
         self.update()
 
     def status_changed(self, e):
@@ -93,9 +94,17 @@ class Task(ft.Column):
 
 
 class TodoApp(ft.Column):
-    def __init__(self, lang="en"):
+    def __init__(self, lang="en", json_path="storage/todos.json"):
+        """
+        TodoApp の初期化メソッド。
+
+        引数:
+            lang (str): アプリの言語設定。デフォルトは "en"。
+            json_path (str): タスクを保存する JSON ファイルのパス。デフォルトは "storage/todos.json"。
+        """
         super().__init__()
         self.lang = lang
+        self.json_path = json_path
         self.translations = translations[self.lang]
 
         self.new_task = ft.TextField(
@@ -169,16 +178,19 @@ class TodoApp(ft.Column):
             self.tasks.controls.append(task)
             self.new_task.value = ""
             self.new_task.focus()
-            save_tasks()
+            global todo_app
+            todo_app.save_tasks()
             self.update()
 
     def status_changed(self, task):
-        save_tasks()
+        global todo_app
+        todo_app.save_tasks()
         self.update()
 
     def delete_task(self, task):
         self.tasks.controls.remove(task)
-        save_tasks()
+        global todo_app
+        todo_app.save_tasks()
         self.update()
 
     def tabs_changed(self, e):
@@ -195,7 +207,7 @@ class TodoApp(ft.Column):
             task_list.append(
                 {"task_name": task.display_task.label, "completed": task.completed}
             )
-        with open("storage/todos.json", "w", encoding="utf-8") as f:
+        with open(self.json_path, "w", encoding="utf-8") as f:
             json.dump(task_list, f, ensure_ascii=False, indent=4)
 
     def before_update(self):
@@ -220,6 +232,25 @@ class TodoApp(ft.Column):
 
     def save_clicked(self):
         self.update()
+
+    def load_tasks(self):
+        try:
+            with open(self.json_path, "r", encoding="utf-8") as f:
+                task_list = json.load(f)
+            for task_data in task_list:
+                task = Task(
+                    task_name=task_data["task_name"],
+                    on_status_changed=self.status_changed,
+                    on_delete_clicked=self.delete_task,
+                    on_edit_clicked=self.edit_clicked,
+                    on_save_clicked=self.save_clicked,
+                )
+                task.completed = task_data["completed"]
+                task.display_task.value = task.completed
+                self.tasks.controls.append(task)
+        except FileNotFoundError:
+            print("File not found")
+            return
 
 
 todo_app = None
@@ -265,18 +296,7 @@ def main(page: ft.Page):
     page.add(todo_app)
 
     # タスクをロード
-    task_list = load_tasks()
-    for task_data in task_list:
-        task = Task(
-            task_name=task_data["task_name"],
-            on_status_changed=todo_app.status_changed,
-            on_delete_clicked=todo_app.delete_task,
-            on_edit_clicked=todo_app.edit_clicked,
-            on_save_clicked=todo_app.save_clicked,
-        )
-        task.completed = task_data["completed"]
-        task.display_task.value = task.completed
-        todo_app.tasks.controls.append(task)
+    todo_app.load_tasks()
 
     page.update()
 
