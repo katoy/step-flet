@@ -6,7 +6,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 's
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src', 'assets')))
 
 # Execute src/main.py's if __name__ == "__main__": block
-import src.main
 
 from src.main import Task, TodoApp, main
 

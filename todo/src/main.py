@@ -180,7 +180,16 @@ class TodoApp(ft.Column):
         for task in self.tasks.controls[:]:
             if task.completed:
                 self.delete_task(task)
-        self.save_tasks()
+
+    def save_tasks(self):
+        task_list = []
+        for task in self.tasks.controls:
+            task_list.append({
+                "task_name": task.display_task.label,
+                "completed": task.completed
+            })
+        with open("storage/todos.json", "w", encoding="utf-8") as f:
+            json.dump(task_list, f, ensure_ascii=False, indent=4)
 
     def before_update(self):
         # タブの選択インデックスで表示を制御
