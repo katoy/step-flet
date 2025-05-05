@@ -1,7 +1,10 @@
 import unittest
 import flet as ft
+from unittest.mock import Mock
 import sys
 import os
+import json
+from src.assets.translations import translations
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 sys.path.append(
@@ -49,6 +52,102 @@ class MockLanguageDropdown:
 
     def language_changed(self, event):
         src.main.todo_app.lang = "en"
+
+
+class TestMockLanguageDropdown(unittest.TestCase):
+    def setUp(self):
+        self.dropdown = MockLanguageDropdown()
+
+    def test_language_changed(self):
+        # Mock the event
+        event = Mock()
+        event.control = Mock()
+        event.control.value = "en"
+
+        # Call the method
+        self.dropdown.language_changed(event)
+
+        # Assert that the language has changed
+        self.assertEqual(src.main.todo_app.lang, "en")
+
+
+class TestTodoAppLanguageChanged(unittest.TestCase):
+    def setUp(self):
+        self.page = MockPage()
+        self.app = TodoApp(json_path="storage/test_todos.json")
+        src.main.todo_app = self.app
+        self.app.page = self.page
+        self.page.add(self.app)
+        self.app.new_task.page = self.page
+
+    def test_language_changed(self):
+        # Mock the event
+        event = Mock()
+        event.control = Mock()
+        event.control.value = "en"
+
+        # Call the method
+        self.app.language_changed(event)
+
+        # Assert that the language has changed
+        self.assertEqual(self.app.lang, "en")
+        self.assertEqual(self.app.new_task.hint_text, "What needs to be done?")
+        self.assertEqual(self.app.filter.tabs[0].text, "all")
+        self.assertEqual(self.app.filter.tabs[1].text, "active")
+        self.assertEqual(self.app.filter.tabs[2].text, "completed")
+        self.assertEqual(self.app.items_left.value, "0 active item(s) left")
+        self.assertEqual(self.app.translations, translations["en"])
+
+
+class TestTodoAppInvalidLanguageChanged(unittest.TestCase):
+    def setUp(self):
+        self.page = MockPage()
+        self.app = TodoApp(lang="ja", json_path="storage/test_todos.json")
+        src.main.todo_app = self.app
+        self.app.page = self.page
+        self.page.add(self.app)
+        self.app.new_task.page = self.page
+        # Mock the event
+        event = Mock()
+        event.control = Mock()
+        event.control.value = "invalid"
+
+        # Call the method
+        self.app.language_changed(event)
+
+    def test_language_changed_invalid_language(self):
+        # Assert that the language has changed
+        self.assertEqual(self.app.lang, "ja")
+
+    def test_language_changed_empty_language(self):
+        # Mock the event
+        event = Mock()
+        event.control = Mock()
+        event.control.value = ""
+
+        # Call the method
+        self.app.language_changed(event)
+
+        # Assert that the language has not changed
+        self.assertEqual(self.app.lang, "ja")
+
+    def test_language_changed_no_event(self):
+        # Call the method with no event
+        self.app.language_changed(None)
+
+        # Assert that the language has not changed
+        self.assertEqual(self.app.lang, "ja")
+
+    def test_language_changed_no_control(self):
+        # Mock the event
+        event = Mock()
+        del event.control
+
+        # Call the method
+        self.app.language_changed(event)
+
+        # Assert that the language has not changed
+        self.assertEqual(self.app.lang, "ja")
 
 
 class TestTask(unittest.TestCase):
@@ -275,6 +374,74 @@ class TestTodoApp(unittest.TestCase):
         self.assertTrue(delete_called)
         self.assertTrue(edit_called)
 
+    def test_task_save_clicked(self):
+        # Test that save_clicked calls on_save_clicked
+        save_called = False
+
+        def set_save_called():
+            nonlocal save_called
+            save_called = True
+
+        task = Task(
+            "Test Task",
+            None,
+            None,
+            None,
+            set_save_called,
+        )
+        task.page = self.page
+        self.page.add(task)
+        task.save_clicked(None)
+        self.assertTrue(save_called)
+
+    def test_task_save_clicked_save_tasks(self):
+        # Test that save_clicked calls todo_app.save_tasks
+        save_tasks_called = False
+
+        def set_save_tasks_called():
+            nonlocal save_tasks_called
+            save_tasks_called = True
+
+        # Mock todo_app and its save_tasks method
+        src.main.todo_app = Mock()
+        src.main.todo_app.save_tasks = set_save_tasks_called
+
+        task = Task(
+            "Test Task",
+            None,
+            None,
+            None,
+            lambda: None,
+        )
+        task.page = self.page
+        self.page.add(task)
+        task.save_clicked(None)
+        self.assertTrue(save_tasks_called)
+
+    def test_task_save_clicked_update(self):
+        update_called = False
+
+        def set_update_called(arg):
+            nonlocal update_called
+            update_called = True
+
+        # Mock todo_app and its save_tasks method
+        src.main.todo_app = Mock()
+        src.main.todo_app.save_tasks = Mock()
+
+        task = Task(
+            "Test Task",
+            None,
+            None,
+            None,
+            lambda: None,
+        )
+        mock_page = Mock()
+        mock_page.update = set_update_called
+        task.page = mock_page
+        task.save_clicked(None)
+        self.assertTrue(update_called)
+
     def test_add_clicked_empty_task(self):
         self.app.new_task.value = ""
         self.app.add_clicked(None)
@@ -296,71 +463,89 @@ class TestTodoApp(unittest.TestCase):
         self.app.edit_clicked()
         self.app.save_clicked()
 
+    def test_save_tasks(self):
+        # テスト用のタスクを追加
+        self.app.new_task.value = "Test Task 1"
+        self.app.add_clicked(None)
+        self.app.new_task.value = "Test Task 2"
+        self.app.add_clicked(None)
+
+        # タスクを保存
+        self.app.save_tasks()
+
+        # JSON ファイルからタスクをロード
+        with open(self.app.json_path, "r", encoding="utf-8") as f:
+            task_list = json.load(f)
+
+        # 保存されたタスクが正しいことを確認
+        self.assertEqual(len(task_list), 2)
+        self.assertEqual(task_list[0]["task_name"], "Test Task 1")
+        self.assertEqual(task_list[1]["task_name"], "Test Task 2")
+
+        # テストで使用したタスクを削除main
+        self.app.clear_clicked(None)
+
+    def test_load_tasks_from_json(self):
+        # JSONファイルにタスクを書き込む
+        test_tasks = [
+            {"task_name": "Task 1", "completed": False},
+            {"task_name": "Task 2", "completed": False},
+        ]
+        with open(self.app.json_path, "w", encoding="utf-8") as f:
+            json.dump(test_tasks, f, ensure_ascii=False, indent=4)
+
+        # タスクをロード
+        self.app.load_tasks()
+
+        # ロードされたタスクが正しいことを確認
+        self.assertEqual(len(self.app.tasks.controls), 2)
+        self.assertEqual(self.app.tasks.controls[0].task_name, "Task 1")
+        self.assertEqual(self.app.tasks.controls[1].task_name, "Task 2")
+
+        # テストで使用したタスクを削除
+        self.app.clear_clicked(None)
+
+    def test_load_tasks_from_deleted_json(self):
+        # JSONファイルを削除
+        if os.path.exists(self.app.json_path):
+            os.remove(self.app.json_path)
+
+        # タスクをロード
+        # JSONファイルが存在しないため、タスクはロードされない
+        self.app.load_tasks()
+
+        # タスクがロードされないことを確認
+        self.assertEqual(len(self.app.tasks.controls), 0)
+
+    def test_load_tasks_from_invalid_json(self):
+        # JSONファイルにJSON形式ではない内容を書き込む
+        with open(self.app.json_path, "w", encoding="utf-8") as f:
+            f.write("invalid json")
+
+        # タスクをロード
+        self.app.load_tasks()
+
+        # タスクがロードされないことを確認
+        self.assertEqual(len(self.app.tasks.controls), 0)
+
 
 class TestMain(unittest.TestCase):
     def setUp(self):
         self.mock_page = MockPage()
         self.app = TodoApp(lang="ja", json_path="storage/test_todos.json")
         src.main.todo_app = self.app
-        self.mock_page.add(src.main.todo_app)
+        self.mock_page.add(self.app)
 
     def test_main(self):
         self.assertEqual(len(self.mock_page.controls), 1)
         self.assertIsInstance(self.mock_page.controls[0], TodoApp)
 
-    def test_language_changed(self):
-        language_dropdown = self.mock_page.appbar.actions[0]
-        language_dropdown.value = "en"
-        language_changed_event = ft.ControlEvent(
-            target=language_dropdown,
-            name="change",
-            data=None,
-            control=language_dropdown,
-            page=self.mock_page,
-        )
-        language_dropdown.language_changed(language_changed_event)
-        self.assertEqual(src.main.todo_app.lang, "en")
-        self.assertEqual(src.main.todo_app.json_path, "storage/test_todos.json")
-
-    def test_load_tasks_from_json(self):
-        # Create a test JSON file with some tasks
-        test_data = [
-            {"completed": False, "task_name": "Task 1"},
-            {"completed": True, "task_name": "Task 2"},
-        ]
-        import json
-
-        with open("storage/test_todos.json", "w") as f:
-            json.dump(test_data, f)
-
-        self.app.load_tasks()
-
-        # Assert that the tasks were loaded correctly
-        self.assertEqual(len(self.app.tasks.controls), 2)
-        self.assertEqual(self.app.tasks.controls[0].task_name, "Task 1")
-        self.assertEqual(self.app.tasks.controls[0].completed, False)
-        self.assertEqual(self.app.tasks.controls[1].task_name, "Task 2")
-        self.assertEqual(self.app.tasks.controls[1].completed, True)
-
-        # Clean up the test JSON file
-        # Clean up the test JSON file
-        with open("storage/test_todos.json", "w") as f:
-            f.write("[]")
-
-    def test_load_tasks_from_json_empty(self):
-        # Create an empty test JSON file
-        with open("storage/test_todos.json", "w") as f:
-            f.write("[]")
-
-        # Load tasks from the JSON file
-        src.main.todo_app.load_tasks()
-
-        # Assert that no tasks were loaded
-        self.assertEqual(len(self.app.tasks.controls), 0)
-
-        # Clean up the test JSON file
-        with open("storage/test_todos.json", "w") as f:
-            f.write("[]")
+    def test_main_function(self):
+        # Test the main function
+        self.mock_page.controls = []
+        src.main.main(self.mock_page)
+        self.assertEqual(len(self.mock_page.controls), 1)
+        self.assertIsInstance(self.mock_page.controls[0], TodoApp)
 
 
 if __name__ == "__main__":

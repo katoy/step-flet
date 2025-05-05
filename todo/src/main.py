@@ -177,10 +177,10 @@ class TodoApp(ft.Column):
             )
             self.tasks.controls.append(task)
             self.new_task.value = ""
-            self.new_task.focus()
             global todo_app
             todo_app.save_tasks()
             self.update()
+            self.new_task.focus()
 
     def status_changed(self, task):
         global todo_app
@@ -250,7 +250,29 @@ class TodoApp(ft.Column):
                 self.tasks.controls.append(task)
         except FileNotFoundError:
             print("File not found")
+            self.tasks.controls = []
             return
+        except json.JSONDecodeError:
+            print("Invalid JSON file")
+            self.tasks.controls = []
+            return
+
+    def language_changed(self, e):
+        if e and hasattr(e, "control") and e.control:
+            self.lang = e.control.value
+        else:
+            self.lang = "ja"
+        try:
+            self.translations = translations[self.lang]
+        except KeyError:
+            self.lang = "ja"
+            self.translations = translations["ja"]
+        self.new_task.hint_text = self.translations["What needs to be done?"]
+        self.filter.tabs[0].text = self.translations["all"]
+        self.filter.tabs[1].text = self.translations["active"]
+        self.filter.tabs[2].text = self.translations["completed"]
+        self.items_left.value = f"{0} active {self.translations['item(s) left']}"
+        self.update()
 
 
 todo_app = None
@@ -263,27 +285,15 @@ def main(page: ft.Page):
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.scroll = ft.ScrollMode.ADAPTIVE
 
-    def language_changed(e):
-        global todo_app
-        # 1) 現在のタスクをまるごと保持
-        old_tasks = todo_app.tasks.controls[:] if todo_app else []
-        # 2) ページから古いアプリを削除
-        if todo_app and todo_app in page.controls:
-            page.remove(todo_app)
-        # 3) 新しい言語設定でアプリを再生成
-        new_app = TodoApp(lang=language_dropdown.value)
-        # 4) 古い Task インスタンスをそのまま新アプリに追加（状態も保持）
-        for task in old_tasks:
-            new_app.tasks.controls.append(task)
-        # 5) ページに追加して更新
-        page.add(new_app)
-        todo_app = new_app
-        page.update()
+    # 初回起動
+    todo_app = TodoApp(lang="ja")
+    todo_app.page = page
+    page.add(todo_app)
 
     language_dropdown = ft.Dropdown(
         options=[ft.dropdown.Option("ja"), ft.dropdown.Option("en")],
         value="ja",
-        on_change=language_changed,
+        on_change=todo_app.language_changed,
     )
 
     page.appbar = ft.AppBar(
@@ -291,41 +301,9 @@ def main(page: ft.Page):
         actions=[language_dropdown],
     )
 
-    # 初回起動
-    todo_app = TodoApp(lang="ja")
-    page.add(todo_app)
-
     # タスクをロード
     todo_app.load_tasks()
-
     page.update()
-
-
-import os
-
-TEST_MODE = True
-STORAGE_FILE = "storage/test_todos.json"
-
-
-def load_tasks():
-    try:
-        with open(STORAGE_FILE, "r", encoding="utf-8") as f:
-            task_list = json.load(f)
-    except FileNotFoundError:
-        return []
-    return task_list
-
-
-def save_tasks():
-    if todo_app is None or todo_app.tasks is None:
-        return
-    task_list = []
-    for task in todo_app.tasks.controls:
-        task_list.append(
-            {"task_name": task.display_task.label, "completed": task.completed}
-        )
-    with open(STORAGE_FILE, "w", encoding="utf-8") as f:
-        json.dump(task_list, f, ensure_ascii=False, indent=4)
 
 
 if __name__ == "__main__":
