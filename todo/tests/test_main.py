@@ -54,6 +54,25 @@ class MockLanguageDropdown:
         src.main.todo_app.lang = "en"
 
 
+class TodoAppTestBase(unittest.TestCase):
+    def setUp(self):
+        self.page = MockPage()
+        self.app = TodoApp(json_path="storage/test_todos.json")
+        src.main.todo_app = self.app
+        self.app.page = self.page
+        self.page.add(self.app)
+        self.app.new_task.page = self.page
+
+
+class TaskTestBase(unittest.TestCase):
+    def setUp(self):
+        self.page = MockPage()
+        self.page.focus_called = False
+        self.task = Task("Test Task", None, None, None, None)
+        self.task.page = self.page
+        self.page.add(self.task)
+
+
 class TestMockLanguageDropdown(unittest.TestCase):
     def setUp(self):
         self.dropdown = MockLanguageDropdown()
@@ -71,15 +90,7 @@ class TestMockLanguageDropdown(unittest.TestCase):
         self.assertEqual(src.main.todo_app.lang, "en")
 
 
-class TestTodoAppLanguageChanged(unittest.TestCase):
-    def setUp(self):
-        self.page = MockPage()
-        self.app = TodoApp(json_path="storage/test_todos.json")
-        src.main.todo_app = self.app
-        self.app.page = self.page
-        self.page.add(self.app)
-        self.app.new_task.page = self.page
-
+class TestTodoAppLanguageChanged(TodoAppTestBase):
     def test_language_changed(self):
         # Mock the event
         event = Mock()
@@ -99,14 +110,8 @@ class TestTodoAppLanguageChanged(unittest.TestCase):
         self.assertEqual(self.app.translations, translations["en"])
 
 
-class TestTodoAppInvalidLanguageChanged(unittest.TestCase):
-    def setUp(self):
-        self.page = MockPage()
-        self.app = TodoApp(lang="ja", json_path="storage/test_todos.json")
-        src.main.todo_app = self.app
-        self.app.page = self.page
-        self.page.add(self.app)
-        self.app.new_task.page = self.page
+class TestTodoAppInvalidLanguageChanged(TodoAppTestBase):
+    def test_language_changed_invalid_language(self):
         # Mock the event
         event = Mock()
         event.control = Mock()
@@ -115,7 +120,6 @@ class TestTodoAppInvalidLanguageChanged(unittest.TestCase):
         # Call the method
         self.app.language_changed(event)
 
-    def test_language_changed_invalid_language(self):
         # Assert that the language has changed
         self.assertEqual(self.app.lang, "ja")
 
@@ -150,14 +154,7 @@ class TestTodoAppInvalidLanguageChanged(unittest.TestCase):
         self.assertEqual(self.app.lang, "ja")
 
 
-class TestTask(unittest.TestCase):
-    def setUp(self):
-        self.page = MockPage()
-        self.page.focus_called = False
-        self.task = Task("Test Task", None, None, None, None)
-        self.task.page = self.page
-        self.page.add(self.task)
-
+class TestTask(TaskTestBase):
     def test_task_creation(self):
         self.assertEqual(self.task.task_name, "Test Task")
         self.assertFalse(self.task.completed)
@@ -200,16 +197,7 @@ class TestTask(unittest.TestCase):
         self.assertFalse(self.task.edit_view.visible)
 
 
-class TestTodoApp(unittest.TestCase):
-    def setUp(self):
-        self.page = MockPage()
-        self.page.focus_called = False
-        self.app = TodoApp(json_path="storage/test_todos.json")
-        src.main.todo_app = self.app
-        self.app.page = self.page
-        self.page.add(self.app)
-        self.app.new_task.page = self.page
-
+class TestTodoApp(TodoAppTestBase):
     def test_todo_app_creation(self):
         self.assertEqual(self.app.width, 600)
 
@@ -385,8 +373,7 @@ class TestTodoApp(unittest.TestCase):
         task = Task(
             "Test Task",
             None,
-            None,
-            None,
+            None, None,
             set_save_called,
         )
         task.page = self.page
