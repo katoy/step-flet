@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from src.assets.translations import translations
 import src.main
 
-from src.main import Task, TodoApp, main, todo_app
+from src.main import Task, TodoApp
 
 
 class MockPage:
