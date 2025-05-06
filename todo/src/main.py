@@ -1,6 +1,9 @@
 import flet as ft
 import json
-from assets.translations import translations
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from src.assets.translations import translations
 
 
 class Task(ft.Column):
@@ -95,10 +98,9 @@ class Task(ft.Column):
 
 class TodoApp(ft.Column):
     def __init__(self, lang="en", json_path="storage/todos.json"):
-        """
-        TodoApp の初期化メソッド。
+        """TodoApp の初期化メソッド。
 
-        引数:
+        Args:
             lang (str): アプリの言語設定。デフォルトは "en"。
             json_path (str): タスクを保存する JSON ファイルのパス。デフォルトは "storage/todos.json"。
         """
@@ -113,6 +115,8 @@ class TodoApp(ft.Column):
             expand=True,
         )
         self.tasks = ft.Column()
+
+        self.items_left = ft.Text("0 items left")
 
         self.filter = ft.Tabs(
             scrollable=False,
@@ -181,25 +185,42 @@ class TodoApp(ft.Column):
             todo_app.save_tasks()
             self.update()
             self.new_task.focus()
+        else:
+            self.update()
+        self.update_items_left()  # pragma: no cover
 
     def status_changed(self, task):
         global todo_app
         todo_app.save_tasks()
-        self.update()
+        self.update_items_left()
 
     def delete_task(self, task):
         self.tasks.controls.remove(task)
         global todo_app
         todo_app.save_tasks()
-        self.update()
+        self.update_items_left()
 
     def tabs_changed(self, e):
         self.update()
+        self.update_task_visibility()
+        self.update_items_left()
 
     def clear_clicked(self, e):
         for task in self.tasks.controls[:]:
             if task.completed:
                 self.delete_task(task)
+
+    def update_task_visibility(self):
+        for task in self.tasks.controls:
+            if self.filter.selected_index == 0:  # "all" tab
+                task.visible = True
+            elif self.filter.selected_index == 1:  # "active" tab
+                task.visible = not task.completed
+            elif self.filter.selected_index == 2:  # "completed" tab
+                task.visible = task.completed
+            task.update()
+        if hasattr(self, "translations"):
+            self.update_items_left()
 
     def save_tasks(self):
         task_list = []
@@ -209,23 +230,6 @@ class TodoApp(ft.Column):
             )
         with open(self.json_path, "w", encoding="utf-8") as f:
             json.dump(task_list, f, ensure_ascii=False, indent=4)
-
-    def before_update(self):
-        # タブの選択インデックスで表示を制御
-        idx = self.filter.selected_index  # 0=all, 1=active, 2=completed
-        count = 0
-        for task in self.tasks.controls:
-            if idx == 0:
-                task.visible = True
-            elif idx == 1:
-                task.visible = not task.completed
-            else:
-                task.visible = task.completed
-
-            if not task.completed:
-                count += 1
-
-        self.items_left.value = f"{count} active {self.translations['item(s) left']}"
 
     def edit_clicked(self):
         self.update()
@@ -255,6 +259,7 @@ class TodoApp(ft.Column):
         except json.JSONDecodeError:
             print("Invalid JSON file")
             self.tasks.controls = []
+            self.update_items_left()
             return
 
     def language_changed(self, e):
@@ -271,7 +276,19 @@ class TodoApp(ft.Column):
         self.filter.tabs[0].text = self.translations["all"]
         self.filter.tabs[1].text = self.translations["active"]
         self.filter.tabs[2].text = self.translations["completed"]
-        self.items_left.value = f"{0} active {self.translations['item(s) left']}"
+        count = 0
+        for task in self.tasks.controls:
+            if not task.completed:
+                count += 1
+        self.items_left.value = f"{count} active {self.translations['item(s) left']}"
+        self.update()
+
+    def update_items_left(self):
+        count = 0
+        for task in self.tasks.controls:
+            if not task.completed:
+                count += 1
+        self.items_left.value = f"{count} active {self.translations['item(s) left']}"
         self.update()
 
 
@@ -303,6 +320,7 @@ def main(page: ft.Page):
 
     # タスクをロード
     todo_app.load_tasks()
+    todo_app.update_items_left()
     page.update()
 
 

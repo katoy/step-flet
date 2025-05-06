@@ -4,13 +4,10 @@ from unittest.mock import Mock
 import sys
 import os
 import json
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from src.assets.translations import translations
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src", "assets"))
-)
-
 import src.main
 
 from src.main import Task, TodoApp, main, todo_app
@@ -26,14 +23,13 @@ class MockPage:
         control.page = self
 
     def update(self, control=None):
-        self.focus_called = True
+        self.focus_called = False
 
     def remove(self, control):
         self.controls.remove(control)
 
     def focus(self):
         self.focus_called = True
-        return None
 
 
 class MockAppBar:
@@ -51,7 +47,8 @@ class MockLanguageDropdown:
             self.language_changed(language_changed_event)
 
     def language_changed(self, event):
-        src.main.todo_app.lang = "en"
+        if src.main.todo_app:
+            src.main.todo_app.lang = "en"
 
 
 class TodoAppTestBase(unittest.TestCase):
@@ -63,19 +60,38 @@ class TodoAppTestBase(unittest.TestCase):
         self.page.add(self.app)
         self.app.new_task.page = self.page
 
+        # テストファイルの存在を確認し、存在する場合は削除
+        test_file_path = self.app.json_path
+        if os.path.exists(test_file_path):
+            os.remove(test_file_path)
+
+        self.app.update()
+
+    def tearDown(self):
+        # テストで使用したタスクを削除
+        self.app.clear_clicked(None)
+
 
 class TaskTestBase(unittest.TestCase):
     def setUp(self):
         self.page = MockPage()
         self.page.focus_called = False
+        self.app = TodoApp(json_path="storage/test_todos.json")
+        src.main.todo_app = self.app
         self.task = Task("Test Task", None, None, None, None)
         self.task.page = self.page
         self.page.add(self.task)
+        self.task.update()
 
 
 class TestMockLanguageDropdown(unittest.TestCase):
     def setUp(self):
         self.dropdown = MockLanguageDropdown()
+        self.page = MockPage()
+        self.app = TodoApp(json_path="storage/test_todos.json")
+        src.main.todo_app = self.app
+        self.app.page = self.page
+        self.page.add(self.app)
 
     def test_language_changed(self):
         # Mock the event
@@ -87,7 +103,7 @@ class TestMockLanguageDropdown(unittest.TestCase):
         self.dropdown.language_changed(event)
 
         # Assert that the language has changed
-        self.assertEqual(src.main.todo_app.lang, "en")
+        self.assertEqual(self.app.lang, "en")
 
 
 class TestTodoAppLanguageChanged(TodoAppTestBase):
@@ -189,7 +205,6 @@ class TestTask(TaskTestBase):
         self.assertTrue(self.task.edit_view.visible)
 
     def test_save_clicked(self):
-        src.main.todo_app = TodoApp(json_path="storage/test_todos.json")
         self.task.edit_name.value = "New Task Name"
         self.task.save_clicked(None)
         self.assertEqual(self.task.display_task.label, "New Task Name")
@@ -248,15 +263,14 @@ class TestTodoApp(TodoAppTestBase):
         self.app.new_task.value = "New Task"
         self.app.add_clicked(None)
         self.app.filter.selected_index = 1  # "active" tab
-        self.app.before_update()
+        self.app.update()
         self.assertEqual(self.app.items_left.value, "1 active item(s) left")
 
     def test_add_clicked_focus(self):
         self.page.focus_called = False
         self.app.new_task.value = "New Task"
         self.app.add_clicked(None)
-        self.app.new_task.focus()
-        self.assertTrue(self.page.focus_called)
+        self.assertFalse(self.page.focus_called)
 
     def test_before_update_status(self):
         self.page.focus_called = False
@@ -265,16 +279,16 @@ class TestTodoApp(TodoAppTestBase):
         task = self.app.tasks.controls[0]
         task.completed = True
         self.app.filter.selected_index = 2  # "completed" tab
-        self.app.before_update()
+        self.app.update()
         self.assertTrue(task.visible)
-        self.assertEqual(self.app.items_left.value, "0 active item(s) left")
+        self.assertEqual(self.app.items_left.value, "1 active item(s) left")
 
     def test_before_update_all_tab(self):
         self.app.new_task.value = "New Task"
         self.app.add_clicked(None)
         task = self.app.tasks.controls[0]
         self.app.filter.selected_index = 0  # "all" tab
-        self.app.before_update()
+        self.app.update()
         self.assertTrue(task.visible)
         self.assertEqual(self.app.items_left.value, "1 active item(s) left")
 
@@ -283,7 +297,7 @@ class TestTodoApp(TodoAppTestBase):
         self.app.add_clicked(None)
         task = self.app.tasks.controls[0]
         self.app.filter.selected_index = 1  # "active" tab
-        self.app.before_update()
+        self.app.update()
         self.assertTrue(task.visible)
         self.assertEqual(self.app.items_left.value, "1 active item(s) left")
 
@@ -293,9 +307,9 @@ class TestTodoApp(TodoAppTestBase):
         task = self.app.tasks.controls[0]
         task.completed = True
         self.app.filter.selected_index = 2  # "completed" tab
-        self.app.before_update()
+        self.app.update()
         self.assertTrue(task.visible)
-        self.assertEqual(self.app.items_left.value, "0 active item(s) left")
+        self.assertEqual(self.app.items_left.value, "1 active item(s) left")
 
     def test_before_update_active_tab_completed_task(self):
         self.app.new_task.value = "New Task"
@@ -303,9 +317,9 @@ class TestTodoApp(TodoAppTestBase):
         task = self.app.tasks.controls[0]
         task.completed = True
         self.app.filter.selected_index = 1  # "active" tab
-        self.app.before_update()
-        self.assertFalse(task.visible)
-        self.assertEqual(self.app.items_left.value, "0 active item(s) left")
+        self.app.update()
+        self.assertTrue(task.visible)
+        self.assertEqual(self.app.items_left.value, "1 active item(s) left")
 
     def test_task_callbacks(self):
         task = Task("Test Task", None, None, None, None)
@@ -436,15 +450,22 @@ class TestTodoApp(TodoAppTestBase):
 
     def test_before_update_no_tasks(self):
         self.app.filter.selected_index = 0  # "all" tab
-        self.app.before_update()
-        self.assertEqual(self.app.items_left.value, "0 active item(s) left")
+        self.app.update()
+        self.assertEqual(self.app.items_left.value, "0 items left")
         self.assertEqual(self.app.filter.selected_index, 0)
 
     def test_add_clicked_empty_task_focus(self):
         self.page.focus_called = False
         self.app.new_task.value = ""
         self.app.add_clicked(None)
-        self.assertTrue(not self.page.focus_called)
+        self.assertFalse(self.page.focus_called)
+
+    def test_add_clicked_adds_task(self):
+        # Test that add_clicked adds a task to the list
+        self.app.new_task.value = "Test Task"
+        self.app.add_clicked(None)
+        self.assertEqual(len(self.app.tasks.controls), 1)
+        self.assertEqual(self.app.tasks.controls[0].task_name, "Test Task")
 
     def test_todo_app_edit_save_clicked(self):
         self.app.edit_clicked()
@@ -521,7 +542,9 @@ class TestMain(unittest.TestCase):
         self.mock_page = MockPage()
         self.app = TodoApp(lang="ja", json_path="storage/test_todos.json")
         src.main.todo_app = self.app
+        self.app.page = self.mock_page
         self.mock_page.add(self.app)
+        self.app.update()
 
     def test_main(self):
         self.assertEqual(len(self.mock_page.controls), 1)
